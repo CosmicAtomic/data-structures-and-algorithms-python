@@ -1,58 +1,115 @@
-# A singly linked list where each node points to the next one in the chain.
-# Unlike a regular list, there's no indexing — you traverse from the head node forward.
-class LinkedList:
+# A singly linked list with a tail pointer, so add() and removing the head
+# stay O(1); insert/get/remove at an arbitrary index still have to walk from
+# the head, so those stay O(n).
+class Node:
+    def __init__(self, data=None):
+        self.data = data    # Store the actual data
+        self.next = None    # Pointer to the next Node object (None by default)
 
-    # Each node stores a value and a pointer to the next node.
-    # next is None by default, meaning "end of the list".
-    class Node:
-        def __init__(self, element):
-            self.element = element
-            self.next = None  # Will be updated when a node is linked to another
+    def __repr__(self):
+        # Print the node's data instead of its memory address
+        return f"Node({self.data})"
 
+
+class MyLinkedList:
     def __init__(self):
-        self.length = 0    # Tracks how many nodes are in the list
-        self.head = None   # Points to the first node; None means the list is empty
-
-    def is_empty(self):
-        return self.length == 0
+        self.head = None
+        self.tail = None    # Tracks the last node so add() doesn't need to walk the list
+        self._size = 0      # Underscore avoids clashing with the size() method below
 
     def add(self, element):
-        node = self.Node(element)
-        if self.is_empty():
-            # If the list is empty, the new node becomes the head
-            self.head = node
+        # Append to the end of the list — O(1) thanks to self.tail
+        new_node = Node(element)
+        if self.size() == 0:
+            self.head = new_node
         else:
-            # Otherwise, walk to the last node and attach the new one there
-            current_node = self.head
-            while current_node.next is not None:
-                current_node = current_node.next
-            current_node.next = node
-        self.length += 1
+            self.tail.next = new_node
+        self.tail = new_node
+        self._size += 1
 
-    def remove(self, element):
-        previous_node = None
+    def insert(self, index, element):
+        # Insert at index (0..size inclusive); index == size behaves like add()
+        if index > self.size() or index < 0:
+            raise IndexError()
+        new_node = Node(element)
+        pos = 0
+        if index == 0:
+            new_node.next = self.head
+            self.head = new_node
+        else:
+            # Walk to the node just before index, then splice new_node in after it
+            prev_node = self.head
+            while pos + 1 < index:
+                prev_node = prev_node.next
+                pos += 1
+            new_node.next = prev_node.next
+            prev_node.next = new_node
+        if new_node.next is None:
+            self.tail = new_node   # Inserted at the end — update tail
+        self._size += 1
+
+    def get(self, index):
+        # Retrieve the element at index (0..size-1) by walking from the head
+        if index >= self.size() or index < 0:
+            raise IndexError()
         current_node = self.head
-
-        # Walk the list until we find the element or reach the end
-        while current_node is not None and current_node.element != element:
-            previous_node = current_node
+        pos = 0
+        while pos < index:
             current_node = current_node.next
+            pos += 1
+        return current_node.data
 
-        if current_node is None:
-            # Element wasn't found — nothing to remove
-            return
-        elif previous_node is not None:
-            # Middle or tail node: skip over the current node
-            previous_node.next = current_node.next
+    def remove(self, index):
+        # Remove and return the element at index (0..size-1)
+        if index >= self.size() or index < 0:
+            raise IndexError()
+        if index == 0:
+            removed_data = self.head.data
+            self.head = self.head.next
+            if self.head is None:
+                self.tail = self.head   # List is now empty — clear tail too
         else:
-            # Head node: move head forward to the next node
-            self.head = current_node.next
-        self.length -= 1
+            # Walk to the node just before index, then splice the target node out
+            prev_node = self.head
+            pos = 0
+            while pos + 1 < index:
+                prev_node = prev_node.next
+                pos += 1
+            current_node = prev_node.next
+            if current_node.next is None:
+                self.tail = prev_node   # Removed the last node — update tail
+            prev_node.next = current_node.next
+            removed_data = current_node.data
+        self._size -= 1
+        return removed_data
 
-my_list = LinkedList()
-print(my_list.is_empty())  # True — list starts empty
+    def size(self):
+        return self._size
 
-my_list.add(1)
-my_list.add(2)
-print(my_list.is_empty())  # False — list now has elements
-print(my_list.length)      # 2
+    def is_empty(self):
+        return self._size == 0
+
+
+# Sanity check
+ll = MyLinkedList()
+print(ll.is_empty())   # True — list starts empty
+
+ll.add(10)
+ll.add(20)
+ll.add(30)
+print(ll.size())        # 3
+print(ll.get(1))         # 20
+
+ll.insert(1, 15)
+print(ll.get(1))         # 15 — newly inserted
+print(ll.get(2))         # 20 — shifted right by the insert
+
+print(ll.remove(0))      # 10 — removed element is returned
+print(ll.get(0))         # 15 — new head
+print(ll.tail.data)      # 30 — tail unaffected by removing the head
+
+ll.remove(0)
+ll.remove(0)
+print(ll.remove(0))      # 30 — removing the last element
+print(ll.is_empty())     # True
+print(ll.tail)            # None — tail correctly cleared once the list is empty
